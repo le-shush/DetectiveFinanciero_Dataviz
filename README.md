@@ -19,4 +19,4 @@ assets/Comparativo_Industrias_Averages.xlsx   # Excel descargable desde el repor
 .nojekyll                               # evita que GitHub procese el sitio con Jekyll
 ```
 
-Fuente de datos: `20260930_Detective_v2.xlsx`, hojas `O&G>>`, `Biotech>>`, `Techonolgy >>`, `Pharma>>` (columna *Average*).
+Fuente de datos: `20261001_Detective_Financiero_v3.xlsx`, hojas `O&G>>`, `Biotech>>`, `Technology>>`, `Pharma>>` (columna *Average*).
