@@ -174,6 +174,24 @@ function typesOf(spec){
   if (spec.kind === 'devheat' || spec.kind === 'simheat') return ['heat'];
   return spec.items.length < 3 ? MULTI.filter(t => t !== 'radar') : MULTI;
 }
+const SHOWN = ['bar', 'hbar', 'radar', 'line', 'area', 'heat', 'dist', 'table'];
+function typesShown(spec){
+  if (spec.fixed && !spec.lab) return [spec.fixed];
+  const sp = spec.kind === 'stack' ? ['stack'] : spec.kind === 'dupont' ? ['dupont'] : spec.kind === 'scatter' ? ['scatter'] : [];
+  return sp.concat(SHOWN);
+}
+function whyNot(spec, t){
+  if (spec.kind === 'single') return t === 'stack' ? '' : 'Esta tarjeta muestra una sola partida: este tipo necesita varias partidas';
+  if (spec.kind === 'dupont' || spec.kind === 'scatter') return 'La dispersión DuPont cruza dos indicadores en ejes distintos; solo se puede ver como dispersión o tabla';
+  if (t === 'dist') return 'La distribución es para una sola partida: úsala en las tarjetas "partida por partida"';
+  if (t === 'radar') return 'El radar necesita al menos 3 partidas';
+  return 'No disponible para esta gráfica';
+}
+function typeBtn(spec, t, cur, menu){
+  const ok = (spec.fixed && !spec.lab) || typesOf(spec).includes(t);
+  const tt = ok ? TNAME[t] : `${TNAME[t]} — no disponible: ${whyNot(spec, t)}`;
+  return `<button data-t="${t}" class="${t === cur ? 'on' : ''}" ${ok ? '' : 'disabled aria-disabled="true"'} title="${esc(tt)}" aria-label="${esc(tt)}">${svg(t)}${menu ? ' ' + TNAME[t] : ''}</button>`;
+}
 function typeOf(spec){
   if (spec.fixed) return spec.fixed;
   const ts = typesOf(spec);
@@ -467,9 +485,9 @@ let cardSeq = 0;
 function card(parent, spec){
   spec.id = spec.id || ('c' + (cardSeq++));
   const d = document.createElement('div'); d.className = 'card'; d.style.containerType = 'inline-size';
-  const ts = spec.fixed ? [spec.fixed] : typesOf(spec), cur = typeOf(spec);
+  const ts = typesShown(spec), cur = typeOf(spec);
   const titleHTML = spec.item && !spec.noInfo ? `<button class="lnk" data-item="${esc(spec.item)}" title="Ver qué es, fórmula y cómo leerlo">${esc(spec.title)}</button>` : `<b>${esc(spec.title)}</b>`;
-  const seg = ts.length > 1 ? `<div class="seg tseg">${ts.map(t => `<button data-t="${t}" class="${t === cur ? 'on' : ''}" title="${TNAME[t]}" aria-label="${TNAME[t]}">${svg(t)}</button>`).join('')}</div>` : '';
+  const seg = ts.length > 1 ? `<div class="seg tseg">${ts.map(t => typeBtn(spec, t, cur)).join('')}</div>` : '';
   d.innerHTML = `<div class="card-h"><div class="card-t">${titleHTML}${spec.sub ? `<small>${spec.sub}</small>` : ''}</div><div class="card-a">${seg}
     ${spec.item && !spec.noInfo ? `<button class="mini" data-item="${esc(spec.item)}" title="Qué es y cómo se calcula" aria-label="Información">${svgI('info')}</button>` : ''}
     <div class="menu"><button class="mini mbtn" title="Más opciones" aria-label="Más opciones">${svgI('more')}</button><div class="menu-pop"></div></div></div></div>
@@ -478,7 +496,7 @@ function card(parent, spec){
   const el = d.querySelector('.chart'); el._card = d;
   updateBadge(d, spec);
   d.querySelector('.card-a').addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return;
+    const b = e.target.closest('button'); if (!b || b.disabled) return;
     if (b.dataset.t){ OVR[spec.id] = b.dataset.t; d.querySelectorAll('.tseg button').forEach(x => x.classList.toggle('on', x.dataset.t === b.dataset.t)); updateBadge(d, spec); draw(el, true); return; }
     if (b.classList.contains('mbtn')){ toggleMenu(d, spec, el); e.stopPropagation(); }
   });
@@ -491,27 +509,121 @@ function updateBadge(d, spec){
   const msg = mixed ? 'Unidades mixtas: escala relativa al máximo de cada partida (máx = 100). El tooltip muestra el valor real.' : t === 'radar' ? 'Cada eje tiene su propia escala (rango de todas las entidades).' : '';
   b.textContent = msg; b.classList.toggle('hide', !msg);
 }
-function svgI(k){ const P = {info:'<circle cx="10" cy="10" r="7.5"/><path d="M10 9v5M10 6.2v.1"/>', more:'<circle cx="4.5" cy="10" r="1" fill="currentColor"/><circle cx="10" cy="10" r="1" fill="currentColor"/><circle cx="15.5" cy="10" r="1" fill="currentColor"/>'};
+function svgI(k){ const P = {info:'<circle cx="10" cy="10" r="7.5"/><path d="M10 9v5M10 6.2v.1"/>', img:'<rect x="3" y="4" width="14" height="12" rx="2"/><circle cx="7.5" cy="8.5" r="1.4"/><path d="M3.5 14.5l4-4 3 3 2-2 4 4"/>', more:'<circle cx="4.5" cy="10" r="1" fill="currentColor"/><circle cx="10" cy="10" r="1" fill="currentColor"/><circle cx="15.5" cy="10" r="1" fill="currentColor"/>'};
   return `<svg viewBox="0 0 20 20" aria-hidden="true">${P[k]}</svg>`; }
 function toggleMenu(d, spec, el){
   const pop = d.querySelector('.menu-pop'); const open = pop.classList.contains('open'); closeMenus(); if (open) return;
-  const ts = spec.fixed ? [spec.fixed] : typesOf(spec), cur = typeOf(spec);
-  pop.innerHTML = (ts.length > 1 ? `<div class="mh">Tipo de gráfica</div>${ts.map(t => `<button data-t="${t}" class="${t === cur ? 'on' : ''}">${svg(t)} ${TNAME[t]}</button>`).join('')}<hr>` : '') +
-    `<button data-a="png">${svg('bar')} Descargar PNG</button>` + (!/heat$/.test(spec.kind || '') && (spec.ents.length > 1 || spec.items) ? `<button data-a="lab">${svg('radar')} Abrir en el comparador</button>` : '') +
+  const ts = typesShown(spec), cur = typeOf(spec);
+  pop.innerHTML = (ts.length > 1 ? `<div class="mh">Tipo de gráfica</div>${ts.map(t => typeBtn(spec, t, cur, true)).join('')}<hr>` : '') +
+    `<button data-a="png">${svgI('img')} Descargar imagen…</button>` + (!/heat$/.test(spec.kind || '') && (spec.ents.length > 1 || spec.items) ? `<button data-a="lab">${svg('radar')} Abrir en el comparador</button>` : '') +
     (spec.item ? `<button data-a="info">${svgI('info')} Qué es y cómo se calcula</button>` : '');
   pop.classList.add('open');
-  pop.onclick = e => { const b = e.target.closest('button'); if (!b) return; closeMenus();
+  pop.onclick = e => { const b = e.target.closest('button'); if (!b || b.disabled) return; closeMenus();
     if (b.dataset.t){ OVR[spec.id] = b.dataset.t; d.querySelectorAll('.tseg button').forEach(x => x.classList.toggle('on', x.dataset.t === b.dataset.t)); updateBadge(d, spec); draw(el, true); }
-    else if (b.dataset.a === 'png') downloadPNG(el, spec.title);
+    else if (b.dataset.a === 'png') openExport(spec, el);
     else if (b.dataset.a === 'lab') sendToLab(spec);
     else if (b.dataset.a === 'info') openItem(spec.item); };
 }
 function closeMenus(){ document.querySelectorAll('.menu-pop.open').forEach(p => p.classList.remove('open')); }
 document.addEventListener('click', e => { if (!e.target.closest('.menu')) closeMenus(); const b = e.target.closest('[data-item]'); if (b && !b.closest('.card-a .tseg')) { e.preventDefault(); openItem(b.dataset.item); } });
-function downloadPNG(el, title){
-  const c = echarts.getInstanceByDom(el); if (!c) return;
-  const a = document.createElement('a'); a.href = c.getDataURL({pixelRatio:2, backgroundColor:T.card}); a.download = (title || 'grafica').replace(/[^\wáéíóúñ ]+/gi, '').trim().replace(/\s+/g, '_') + '.png'; a.click();
+// ---------- Exportar imagen: título + subtítulo + leyenda + gráfica re-trazada al tamaño elegido + pie ----------
+const EXP = {bg:'light', size:'wide'};
+const EXP_SIZES = {screen:{n:'Como en pantalla'}, wide:{n:'Presentación 16:9', W:1600, H:900}, doc:{n:'Documento 4:3', W:1400, H:1050},
+                   square:{n:'Cuadrado', W:1200, H:1200}, tall:{n:'Vertical 4:5', W:1080, H:1350}};
+const EXP_BG = {light:'Claro', dark:'Oscuro', transparent:'Transparente'};
+// Lee los tokens de otro tema sin repintar la página: cambia y restaura el atributo dentro de la misma tarea.
+function withTheme(mode, fn){
+  const root = document.documentElement, prev = root.getAttribute('data-theme');
+  if (mode) root.setAttribute('data-theme', mode); readTheme();
+  try { return fn(); } finally { if (prev == null) root.removeAttribute('data-theme'); else root.setAttribute('data-theme', prev); readTheme(); }
 }
+function wrapText(ctx, text, maxW){
+  const out = []; let cur = '';
+  String(text).split(/\s+/).forEach(w => { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width > maxW && cur){ out.push(cur); cur = w; } else cur = t; });
+  if (cur) out.push(cur); return out;
+}
+const plain = h => { const d = document.createElement('div'); d.innerHTML = h || ''; return d.textContent.trim(); };
+function exportType(spec){ const t = typeOf(spec); return t !== 'table' ? t : (spec.auto && spec.auto !== 'table' ? spec.auto : typesOf(spec).find(x => x !== 'table')); }
+function exportCanvas(spec, el){
+  const type = exportType(spec);
+  const mode = EXP.bg === 'transparent' ? (isDark() ? 'dark' : 'light') : EXP.bg;
+  return withTheme(mode, () => {
+    if (EXP.bg === 'transparent') T.card = 'rgba(0,0,0,0)';
+    const sz = EXP_SIZES[EXP.size];
+    const screen = !sz.W;
+    const z = screen ? 2 : sz.W / 1000;                    // factor de escala: el texto crece con la imagen
+    const pad = Math.round(28 * z);
+    const W = screen ? Math.round((el.clientWidth || 600) * z + 2 * pad) : sz.W;
+    const cw = (W - 2 * pad) / z;                            // ancho lógico de la gráfica
+    const cvs = document.createElement('canvas'), ctx = cvs.getContext('2d');
+    const F = (px, wt) => `${wt || 400} ${Math.round(px * z)}px ${FONT}`;
+    // leyenda propia de entidades (la composición conserva la suya, que es de partidas)
+    const keepOwn = spec.kind === 'stack' || /heat$/.test(spec.kind || '');
+    const ents = (spec.kind === 'single' || spec.kind === 'dupont' || spec.kind === 'scatter') && spec.item ? spec.ents.filter(id => avail(id, spec.item)) : spec.ents;
+    ctx.font = F(20, 700); const tl = wrapText(ctx, spec.title || '', W - 2 * pad);
+    ctx.font = F(13); const sl = spec.sub ? wrapText(ctx, plain(spec.sub), W - 2 * pad) : [];
+    ctx.font = F(13); const items = keepOwn ? [] : ents.map(id => ({id, w:ctx.measureText(E[id].label).width + 22 * z}));
+    const rows = []; let row = [], x = 0;
+    items.forEach(it => { if (x + it.w > W - 2 * pad && row.length){ rows.push(row); row = []; x = 0; } row.push(it); x += it.w + 18 * z; });
+    if (row.length) rows.push(row);
+    const headH = pad + tl.length * 27 * z + sl.length * 19 * z + (rows.length ? 10 * z + rows.length * 22 * z : 0) + 14 * z;
+    const footH = 14 * z + 16 * z + pad * 0.8;
+    const ch = screen ? heightOf(spec, type, cw) : Math.max(160, (sz.H - headH - footH) / z);
+    const H = screen ? Math.round(headH + ch * z + footH) : sz.H;
+    // gráfica fuera de pantalla, re-trazada al tamaño lógico
+    const div = document.createElement('div'); div.style.cssText = `position:fixed;left:-20000px;top:0;width:${cw}px;height:${ch}px`; document.body.appendChild(div);
+    const c = echarts.init(div, null, {renderer:'canvas', devicePixelRatio:z});
+    const opt = build(spec, type, cw, ch); opt.animation = false;
+    if (!keepOwn && opt.legend){ opt.legend = {show:false}; if (opt.grid) opt.grid.top = (type === 'dupont' || type === 'scatter') ? 36 : (type === 'hbar' && spec.kind !== 'single' ? 8 : 16);
+      if (opt.radar) opt.radar.center = ['50%', '52%']; }
+    if (opt.legend && opt.legend.type === 'scroll') opt.legend.type = 'plain';
+    if (opt.tooltip) opt.tooltip.show = false;
+    // aprovechar el espacio extra del formato: barras más gruesas y radar más grande
+    const grow = Math.min(2.4, ch / heightOf(spec, type, cw));
+    if (grow > 1.05) (opt.series || []).forEach(se => { if (se.type === 'bar' && se.barMaxWidth) se.barMaxWidth = Math.round(se.barMaxWidth * grow); });
+    if (opt.radar) opt.radar.radius = cw < 520 ? '60%' : '70%';
+    c.setOption(opt);
+    const img = c.getRenderedCanvas({pixelRatio:z, backgroundColor:'transparent'});
+    c.dispose(); div.remove();
+    // composición
+    cvs.width = W; cvs.height = H;
+    if (EXP.bg !== 'transparent'){ ctx.fillStyle = T.card; ctx.fillRect(0, 0, W, H); }
+    ctx.textBaseline = 'top'; let y = pad;
+    ctx.fillStyle = T.ink; ctx.font = F(20, 700); tl.forEach(l => { ctx.fillText(l, pad, y); y += 27 * z; });
+    ctx.fillStyle = T.ink2; ctx.font = F(13); sl.forEach(l => { ctx.fillText(l, pad, y); y += 19 * z; });
+    if (rows.length){ y += 10 * z; ctx.font = F(13);
+      rows.forEach(r => { let lx = pad; r.forEach(it => { const s = 12 * z, col0 = col(it.id); ctx.fillStyle = col0; ctx.beginPath();
+          if (E[it.id].kind === 'co') ctx.arc(lx + s / 2, y + 3 * z + s / 2, s / 2, 0, 7); else { ctx.roundRect ? ctx.roundRect(lx, y + 3 * z, s, s, 3 * z) : ctx.rect(lx, y + 3 * z, s, s); }
+          ctx.fill(); ctx.fillStyle = T.ink2; ctx.fillText(E[it.id].label, lx + s + 7 * z, y + 2 * z); lx += it.w + 18 * z; }); y += 22 * z; }); }
+    ctx.drawImage(img, pad, headH, W - 2 * pad, ch * z);
+    ctx.fillStyle = T.muted; ctx.font = F(11);
+    ctx.fillText('Detective financiero · Fuente: 20261001_Detective_Financiero_v3.xlsx' + (spec.item ? ' · ' + baseOf(byShort[spec.item]) : ''), pad, H - footH + 14 * z);
+    return cvs;
+  });
+}
+function openExport(spec, el){
+  let m = document.getElementById('expModal');
+  if (!m){ m = document.createElement('div'); m.id = 'expModal'; m.className = 'modal'; document.body.appendChild(m); }
+  const seg = (k, opts) => `<div class="seg" data-k="${k}">${Object.entries(opts).map(([v, n]) => `<button data-v="${v}" class="${EXP[k] === v ? 'on' : ''}">${typeof n === 'string' ? n : n.n}</button>`).join('')}</div>`;
+  m.innerHTML = `<div class="modal-c" role="dialog" aria-modal="true" aria-label="Descargar imagen"><div class="dr-head"><div class="dr-title">Descargar imagen · ${esc(spec.title)}</div><button class="icon-btn" data-x="1" aria-label="Cerrar">✕</button></div>
+    <div class="exp-b"><div class="exp-prev ${EXP.bg === 'transparent' ? 'chk' : ''}"><img alt="Vista previa"></div>
+    <div class="exp-o"><label class="ctl">Fondo</label>${seg('bg', EXP_BG)}<label class="ctl">Tamaño</label>${seg('size', EXP_SIZES)}
+      <p class="sub exp-info" style="margin:4px 0 0"></p><p class="sub" style="font-size:12px;margin:0">La gráfica se vuelve a trazar al tamaño elegido e incluye título, leyenda y fuente.${typeOf(spec) === 'table' ? ' Esta tarjeta está en tabla: se exporta como ' + TNAME[exportType(spec)].toLowerCase() + '.' : ''}</p>
+      <button class="pill on exp-go" style="padding:9px 16px;font-size:14px;align-self:flex-start">Descargar PNG</button></div></div></div>`;
+  let cvs;
+  const refresh = () => { cvs = exportCanvas(spec, el); m.querySelector('img').src = cvs.toDataURL('image/png');
+    m.querySelector('.exp-prev').classList.toggle('chk', EXP.bg === 'transparent');
+    m.querySelector('.exp-info').textContent = `${cvs.width} × ${cvs.height} px · PNG · fondo ${EXP_BG[EXP.bg].toLowerCase()}`; };
+  m.onclick = e => {
+    if (e.target === m || e.target.closest('[data-x]')){ m.classList.remove('open'); return; }
+    const b = e.target.closest('.seg button'); if (b){ EXP[b.parentNode.dataset.k] = b.dataset.v; b.parentNode.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); refresh(); return; }
+    if (e.target.closest('.exp-go')){ const a = document.createElement('a'); a.href = cvs.toDataURL('image/png');
+      a.download = (spec.title || 'grafica').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w ]+/g, '').trim().replace(/\s+/g, '_') + `_${cvs.width}x${cvs.height}.png`; a.click(); }
+  };
+  m.classList.add('open'); refresh();
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape'){ const m = document.getElementById('expModal'); if (m) m.classList.remove('open'); } });
+
 function sendToLab(spec){
   const its = spec.kind === 'single' ? [spec.item] : spec.kind === 'dupont' ? ['Rotación de activos totales', 'Margen operacional', 'ROE'] : (spec.items || []);
   LAB.ents = spec.ents.slice(); LAB.items = its.filter(k => !CONST_ITEMS.test(k)); LAB.preset = null;
@@ -743,16 +855,17 @@ function viewLab(root){
   // --- barra de herramientas
   const bar = el('div', 'lab-bar', main);
   const sc = LAB.scale;
-  bar.innerHTML = `<div class="seg" id="labT">${LAB_TYPES.map(t => `<button data-t="${t}" class="${LAB.type === t ? 'on' : ''}" title="${TNAME[t]}">${svg(t)}<span class="lbl-s">${TNAME[t].replace('Barras horizontales', 'Barras H').replace('Mapa de calor', 'Calor')}</span></button>`).join('')}</div>
+  const labNo = t => t === 'radar' && its.length < 3 ? 'El radar necesita al menos 3 partidas' : t === 'scatter' && its.length < 2 ? 'La dispersión necesita al menos 2 partidas' : '';
+  bar.innerHTML = `<div class="seg" id="labT">${LAB_TYPES.map(t => `<button data-t="${t}" class="${LAB.type === t && !labNo(t) ? 'on' : ''}" ${labNo(t) ? 'disabled' : ''} title="${esc(labNo(t) ? TNAME[t] + ' — no disponible: ' + labNo(t) : TNAME[t])}">${svg(t)}<span class="lbl-s">${TNAME[t].replace('Barras horizontales', 'Barras H').replace('Mapa de calor', 'Calor')}</span></button>`).join('')}</div>
     <label class="ctl">Escala <select class="sel" id="labS"><option value="auto" ${sc === 'auto' ? 'selected' : ''}>Automática</option><option value="norm" ${sc === 'norm' ? 'selected' : ''}>Relativa al máximo (=100)</option><option value="dev" ${sc === 'dev' ? 'selected' : ''}>Desviación % vs referencia</option></select></label>
     <label class="ctl ${sc === 'dev' ? '' : 'hide'}">Referencia <select class="sel" id="labR">${LAB.ents.map(id => `<option value="${esc(id)}" ${LAB.ref === id ? 'selected' : ''}>${esc(E[id].label)}</option>`).join('')}</select></label>`;
-  bar.querySelector('#labT').onclick = e => { const b = e.target.closest('button'); if (!b) return; LAB.type = b.dataset.t; rerenderLab(true); };
+  bar.querySelector('#labT').onclick = e => { const b = e.target.closest('button'); if (!b || b.disabled) return; LAB.type = b.dataset.t; rerenderLab(true); };
   bar.querySelector('#labS').onchange = e => { LAB.scale = e.target.value; rerenderLab(true); };
   bar.querySelector('#labR').onchange = e => { LAB.ref = e.target.value; rerenderLab(true); };
   // --- gráfico principal
   if (!its.length || !LAB.ents.length){ el('div', 'note', main).textContent = 'Elige al menos una entidad y una partida.'; return; }
   const ents = LAB.ents;
-  if (LAB.type === 'scatter'){
+  if (LAB.type === 'scatter' && its.length >= 2){
     if (!its.includes(LAB.x)) LAB.x = its[0]; if (!its.includes(LAB.y)) LAB.y = its[Math.min(1, its.length - 1)]; if (LAB.size && !its.includes(LAB.size)) LAB.size = '';
     const sb = el('div', 'lab-bar', main);
     sb.innerHTML = `<label class="ctl">Eje X <select class="sel" data-ax="x">${its.map(k => `<option ${k === LAB.x ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select></label>
@@ -761,7 +874,7 @@ function viewLab(root){
     sb.onchange = e => { LAB[e.target.dataset.ax] = e.target.value; rerenderLab(true); };
     card(main, {kind:'scatter', id:'lab-main', title:`${LAB.y} vs ${LAB.x}`, sub:LAB.size ? 'Tamaño = ' + LAB.size : '', ents, x:LAB.x, y:LAB.y, size:LAB.size || null, fixed:'scatter', h:520});
   } else {
-    const t = LAB.type === 'radar' && its.length < 3 ? 'bar' : LAB.type;
+    const t = (LAB.type === 'radar' && its.length < 3) || LAB.type === 'scatter' ? 'bar' : LAB.type;
     const sub = LAB.scale === 'dev' ? `Desviación % de cada uno contra ${E[LAB.ref].label} (0 = igual)` : t === 'radar' ? 'Pasa el cursor sobre un polígono para ver los valores reales' : t === 'heat' ? 'Color = posición dentro de cada fila' : '';
     card(main, {id:'lab-main', title:ents.map(id => E[id].label).join(' vs '), sub, ents, items:its, fixed:t, scale:LAB.scale === 'auto' ? null : LAB.scale, ref:LAB.ref,
       h:t === 'radar' ? (window.innerWidth < 600 ? 420 : 560) : (['bar', 'line', 'area'].includes(t) ? 460 : null)});
