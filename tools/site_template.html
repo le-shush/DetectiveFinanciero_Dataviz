@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Detective financiero · comparativo</title>
+<script src="assets/plotly.min.js"></script>
+<style>
+:root{--bg:#fcfcfb;--card:#ffffff;--ink:#0b0b0b;--ink2:#52514e;--muted:#8a8985;--line:#e6e5e1;--grid:#eeede9;--accent:#2a78d6;--note-bg:#fff7ed;--note-bd:#fed7aa;--note-ink:#7c2d12;--th:#f3f4f6;--cat:#e5e7eb;--btn:#ffffff;--btn-on:#1f2937;--btn-on-ink:#ffffff;--hover:#ffffff}
+:root[data-theme="dark"]{--bg:#141414;--card:#1e1e1d;--ink:#f3f2ee;--ink2:#c3c2b7;--muted:#8a8985;--line:#33322f;--grid:#2a2a28;--accent:#3987e5;--note-bg:#2b2117;--note-bd:#5a3d1e;--note-ink:#f5c9a3;--th:#262625;--cat:#2f2f2d;--btn:#1e1e1d;--btn-on:#f3f2ee;--btn-on-ink:#141414;--hover:#262625}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,"Segoe UI",Inter,Roboto,sans-serif;transition:background .2s,color .2s}
+.wrap{max-width:1280px;margin:0 auto;padding:0 16px 64px}
+h1{font-size:26px;margin:0}h2{font-size:22px;margin:44px 0 6px;padding-top:16px;border-top:2px solid var(--line)}h3{font-size:16px;margin:24px 0 8px;color:var(--ink2)}
+.sub{color:var(--ink2);margin:0 0 14px}
+.topbar{position:sticky;top:0;z-index:20;background:var(--bg);padding:10px 0 8px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--btn)}
+.seg button{border:0;background:transparent;color:var(--ink);padding:8px 14px;font:inherit;font-size:14px;cursor:pointer}
+.seg button.on{background:var(--btn-on);color:var(--btn-on-ink);font-weight:600}
+.tog{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:6px 12px;background:var(--btn);font-size:14px;cursor:pointer;user-select:none}
+.tog .sw{width:34px;height:18px;border-radius:9px;background:var(--line);position:relative;transition:background .2s}
+.tog .sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,.3);transition:left .2s}
+.tog.on .sw{background:var(--accent)}.tog.on .sw::after{left:18px}
+.sp{flex:1}
+.chips{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 8px}
+.chip{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+.chip b{font-size:14px}.chip span{color:var(--muted);font-size:13px}.dot{width:12px;height:12px;border-radius:3px;flex:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:12px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}.grid .card{margin:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:12px}
+.note{background:var(--note-bg);border:1px solid var(--note-bd);border-radius:10px;padding:10px 14px;font-size:14px;color:var(--note-ink);margin:10px 0}
+.insight{font-size:14px;color:var(--ink2);margin:4px 0 0}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}th{background:var(--th);position:sticky;top:0}
+tr.cat td{background:var(--cat);font-weight:700;text-align:left}
+.tbl{overflow:auto;max-height:70vh}
+nav{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}nav a{font-size:13px;color:var(--accent);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:4px 10px;background:var(--card)}
+.badge{display:inline-block;padding:2px 10px;border-radius:999px;color:#fff;font-weight:600;font-size:13px}
+.hide{display:none}
+a{color:var(--accent)}
+@media(max-width:600px){.grid2{grid-template-columns:1fr}h1{font-size:20px}}
+</style></head><body><div class="wrap">
+<div class="topbar">
+ <div class="row">
+  <h1>Detective financiero</h1><div class="sp"></div>
+  <div class="seg" id="views"><button data-v="ind" class="on">Industrias</button><button data-v="emp">Empresas A–D</button><button data-v="vs">Empresas vs industrias</button></div>
+  <div class="tog" id="tReduced"><span class="sw"></span>Solo partidas de las empresas</div>
+  <div class="tog hide" id="tDev"><span class="sw"></span>Mostrar desviación %</div>
+  <div class="tog" id="tDark"><span class="sw"></span>Modo oscuro</div>
+ </div>
+</div>
+<div id="view"></div>
+<p class="sub" style="margin-top:28px">Fuente: 20261001_Detective_Financiero_v3.xlsx — hojas O&amp;G&gt;&gt;, Biotech&gt;&gt;, Technology&gt;&gt;, Pharma&gt;&gt; (columna <i>Average</i>) y hoja Resumen (empresas A–D). 📥 <a href="assets/Comparativo_Industrias_Averages.xlsx">Excel con los promedios</a></p>
+</div>
+<script>
+const D = __DATA__;
+// ---------- state ----------
+const S = {view:'ind', reduced:false, dev:false, dark:false};
+try{ S.dark = localStorage.getItem('theme')==='dark' || (localStorage.getItem('theme')==null && matchMedia('(prefers-color-scheme: dark)').matches); }catch(e){}
+// ---------- data model ----------
+const ITEMS = []; D.cats.forEach(c=>c.items.forEach(it=>{ it.cat=c.name; ITEMS.push(it); }));
+const byShort = Object.fromEntries(ITEMS.map(it=>[it.short,it]));
+const RED = new Set(D.reduced);
+const INDS = {kind:'ind', names:D.inds, color:n=>D.colors[n], label:n=>n, val:(short)=>byShort[short]?byShort[short].avg:null, sub:n=>D.companies[n].join(' · ')};
+const COMPS = {kind:'emp', names:D.comps.names, color:n=>D.comps.colors[n], label:n=>'Empresa '+n, val:(short)=>D.comps.items[short]||null, sub:n=>'industria por descubrir'};
+const pct = v => (v*100).toFixed(1)+'%';
+const fmt = (v,u) => v==null?'—':(u==='pct'?pct(v):u==='días'?v.toFixed(0)+' días':u==='usd'?'$'+Math.round(v).toLocaleString('en-US')+' mm':v.toFixed(2)+'×');
+const unitName = (it) => it.unit==='usd'?'USD mm':it.unit==='días'?'días':it.unit==='x'?'veces':(['Activos','Pasivos','Capital'].includes(it.cat)?'% activos':(it.cat.startsWith('Indicadores')?'%':'% ingresos'));
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+// ---------- theme ----------
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function base(){ return {paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',font:{family:'inherit',size:13,color:css('--ink')},
+  margin:{l:60,r:20,t:48,b:60},hoverlabel:{bgcolor:css('--hover'),bordercolor:css('--line'),font:{color:css('--ink')}},
+  xaxis:{gridcolor:css('--grid'),zerolinecolor:css('--muted')},yaxis:{gridcolor:css('--grid'),zerolinecolor:css('--muted')},legend:{orientation:'h',y:-0.18}}; }
+const cfg={responsive:true,displayModeBar:false};
+function L(t,o={}){ const b=base(); const r=Object.assign({},b,{title:{text:t,x:0,font:{size:15}}}); for(const k of ['xaxis','yaxis','legend','margin']) if(o[k]) o[k]=Object.assign({},b[k]||{},o[k]); return Object.assign(r,o); }
+let uid=0; const nid=()=>'p'+(uid++);
+const plots=[]; const queue=[]; function plot(id,tr,lay){ plots.push(id); queue.push([id,tr,lay]); }
+function flush(){ queue.forEach(([id,tr,lay])=>Plotly.newPlot(id,tr,lay,cfg)); queue.length=0; }
+// ---------- chart builders (generic over entity set) ----------
+function card(parent,html,h){ const d=document.createElement('div'); d.className='card'; const id=nid(); d.innerHTML=`<div id="${id}" style="height:${h||400}px"></div>${html||''}`; parent.appendChild(d); return id; }
+function stackChart(parent,set,keys,title,ytitle,ins){
+  if(keys.some(k=>!set.val(k))) return;
+  const palette=['#2a78d6','#1baf7a','#eda100','#e87ba4','#4a3aa7','#eb6834','#e34948','#6b7280','#a3a29e','#0ea5a4'];
+  const id=card(parent,ins?`<p class="insight">${ins}</p>`:'',380);
+  const tr=keys.map((k,j)=>{const v=set.val(k);return {type:'bar',name:k,x:set.names.map(set.label),y:v,marker:{color:palette[j],line:{color:css('--card'),width:1.5}},
+    text:v.map(x=>x>0.045?pct(x):''),textposition:'inside',insidetextanchor:'middle',textfont:{color:'#fff',size:11},hovertemplate:'%{x} · '+k+': %{y:.1%}<extra></extra>'}});
+  plot(id,tr,L(title,{barmode:'stack',yaxis:{tickformat:'.0%',title:ytitle},legend:{y:-0.15,font:{size:11}}}));
+}
+function incomeStack(parent,set,ins){
+  const keys=['Costo de ventas','SG&A','I+D','Impuestos','Utilidad neta']; if(keys.some(k=>!set.val(k))) return;
+  const cols=['#8a8985','#eb6834','#4a3aa7','#e34948','#1baf7a']; const id=card(parent,`<p class="insight">${ins}</p>`,420);
+  const tr=keys.map((k,j)=>{const v=set.val(k);return {type:'bar',name:k,y:set.names.map(set.label),x:v,orientation:'h',marker:{color:cols[j],line:{color:css('--card'),width:1.5}},
+    text:v.map(x=>Math.abs(x)>0.03?pct(x):''),textposition:'inside',insidetextanchor:'middle',textfont:{color:'#fff',size:11},hovertemplate:'%{y} · '+k+': %{x:.1%}<extra></extra>'}});
+  const resid=set.names.map((_,i)=>1-keys.reduce((s,k)=>s+set.val(k)[i],0));
+  tr.push({type:'bar',name:'Otros gastos, intereses y otros (neto)',y:set.names.map(set.label),x:resid,orientation:'h',marker:{color:'#b8b7b2',line:{color:css('--card'),width:1.5}},hovertemplate:'%{y} · Otros: %{x:.1%}<extra></extra>'});
+  plot(id,tr,L('¿A dónde va cada dólar de ingreso?',{barmode:'relative',xaxis:{tickformat:'.0%',zerolinecolor:css('--ink')},yaxis:{autorange:'reversed'},legend:{y:-0.2,font:{size:11}},margin:{l:100,b:70}}));
+}
+function barOne(parent,set,k,title,ins,h){
+  const v=set.val(k); if(!v) return; const id=card(parent,ins?`<p class="insight">${ins}</p>`:'',h||400); const u=byShort[k].unit;
+  plot(id,[{type:'bar',x:set.names.map(set.label),y:v,marker:{color:set.names.map(set.color),cornerradius:4},text:v.map(x=>fmt(x,u)),textposition:v.some(x=>x<0)?'auto':'outside',cliponaxis:false,hovertemplate:'%{x}: %{text}<extra></extra>'}],
+    L(title,{yaxis:{tickformat:u==='pct'?'.0%':'',zerolinecolor:css('--ink')},showlegend:false,margin:h?{l:44,r:10,t:40,b:36}:undefined}));
+}
+function grouped(parent,set,keys,title,u,ins){
+  keys=keys.filter(k=>set.val(k)); if(!keys.length) return; const id=card(parent,ins?`<p class="insight">${ins}</p>`:'',400);
+  const tr=set.names.map((n,i)=>({type:'bar',name:set.label(n),x:keys,y:keys.map(k=>set.val(k)[i]),marker:{color:set.color(n),cornerradius:4},
+    text:keys.map(k=>fmt(set.val(k)[i],u)),textposition:'outside',cliponaxis:false,textfont:{size:11},hovertemplate:set.label(n)+' · %{x}: %{text}<extra></extra>'}));
+  plot(id,tr,L(title,{barmode:'group',bargap:0.3,yaxis:{tickformat:u==='pct'?'.0%':'',zerolinecolor:css('--ink')},legend:{y:-0.15}}));
+}
+function dupont(parent,set,ins){
+  const m=set.val('Margen operacional'),r=set.val('Rotación de activos totales'),roe=set.val('ROE'); if(!m||!r||!roe) return;
+  const id=card(parent,`<p class="insight">${ins}</p>`);
+  plot(id,[{type:'scatter',mode:'markers+text',x:r,y:m,text:set.names.map(set.label),textposition:'top center',marker:{size:roe.map(v=>Math.max(14,Math.abs(v||0)*60)),color:set.names.map(set.color),line:{color:css('--card'),width:2}},
+    hovertemplate:'%{text}<br>Rotación de activos: %{x:.2f}×<br>Margen operacional: %{y:.1%}<extra></extra>'}],
+    L('Margen vs rotación de activos (tamaño = |ROE|)',{xaxis:{title:'Rotación de activos totales (×)'},yaxis:{title:'Margen operacional',tickformat:'.0%'},showlegend:false}));
+}
+function radar(parent,set,ks,ins){
+  ks=ks.filter(k=>set.val(k)&&set.val(k).every(v=>v!=null)); if(ks.length<4) return; const id=card(parent,`<p class="insight">${ins}</p>`);
+  const norm=ks.map(k=>{const v=set.val(k),mn=Math.min(...v),mx=Math.max(...v);return v.map(x=>(x-mn)/(mx-mn||1));});
+  plot(id,set.names.map((n,i)=>({type:'scatterpolar',name:set.label(n),r:norm.map(a=>a[i]).concat([norm[0][i]]),theta:ks.concat([ks[0]]),fill:'toself',line:{color:set.color(n),width:2},fillcolor:set.color(n)+'22',hovertemplate:set.label(n)+' · %{theta}: %{r:.2f} (normalizado)<extra></extra>'})),
+    L('Huella (indicadores normalizados)',{polar:{bgcolor:'rgba(0,0,0,0)',radialaxis:{range:[0,1],showticklabels:false,gridcolor:css('--line')},angularaxis:{gridcolor:css('--line'),tickfont:{size:10}}},legend:{y:-0.1},margin:{l:70,r:70,t:48,b:40}}));
+}
+function keyCharts(parent,set,ins){
+  const g=document.createElement('div'); g.className='grid2'; parent.appendChild(g);
+  dupont(g,set,ins.dupont||'DuPont: rentabilidad = margen × rotación.');
+  barOne(g,set,'ROE','ROE (utilidad neta / capital)',ins.roe||'');
+  grouped(g,set,['Razón corriente','Prueba ácida'],'Liquidez: razón corriente y prueba ácida','x',ins.liq||'');
+  grouped(g,set,['Días de inventario','Días de cuentas por cobrar'],'Días de inventario y días de cobro','días',ins.days||'');
+  grouped(g,set,['Deuda LP','Total pasivos','Total capital'],'Apalancamiento (% del activo)','pct','Estructura de financiamiento: deuda de largo plazo vs capital.');
+  grouped(g,set,set.val('Intangibles')?['PP&E neto','Intangibles','Efectivo']:['PP&E neto','Otros act. LP (intang. + otros)','Efectivo'],'Intensidad del activo (% del activo)','pct','Dónde está invertido el activo: físico (PP&E), intangible/otros LP o líquido.');
+  grouped(g,set,['Rotación de activos totales','Rotación de activos fijos netos'],'Rotación de activos totales y fijos','x','Cuántas veces vende su activo al año: alta rotación = negocio de volumen.');
+  if(!(S.reduced&&set.kind==='ind')){ grouped(g,set,['Costo de ventas','SG&A','I+D'],'Estructura de costos (% de ingresos)','pct','Intensidad de costo de ventas vs gasto comercial vs I+D.');
+    grouped(g,set,['Días de cuentas por cobrar','Días de inventario','Días de cuentas por pagar','Ciclo de efectivo'],'Ciclo de conversión de efectivo (días)','días','Ciclo de efectivo = cobro + inventario − pago.');
+    grouped(g,set,['ROA','ROIC','ROE','Margen neto'],'Rentabilidad: ROA, ROIC, ROE y margen neto','pct','Rentabilidad sobre activos, capital invertido y capital contable.'); }
+  radar(g,set,set.kind==='ind'&&!S.reduced?['Margen operacional','ROE','Rotación de activos totales','Razón corriente','Días de inventario','Ciclo de efectivo','Nivel de endeudamiento','PP&E neto','Intangibles','Utilidad bruta']
+                 :['Margen operacional','ROE','Rotación de activos totales','Razón corriente','Días de inventario','Días de cuentas por cobrar','Total pasivos','PP&E neto','Efectivo','Rotación de activos fijos netos'],
+        'Perfil normalizado (0 = mínimo, 1 = máximo del grupo). La forma del polígono es la "huella" de cada uno.');
+}
+function categorySections(parent,set,filter,startNum){
+  let n=startNum;
+  D.cats.forEach((c)=>{
+    const items=c.items.filter(it=>filter(it)&&set.val(it.short)&&!/^(Total activos|Pasivo \+ Capital|Ingresos)$/.test(it.short)); if(!items.length) return;
+    const sec=document.createElement('div'); const anchor='c'+(n);
+    sec.innerHTML=`<h2 id="${anchor}">${n}. ${c.name}</h2><p class="sub">${c.name.startsWith('Indicadores')?'Cada indicador en su unidad.':(['Activos','Pasivos','Capital'].includes(c.name)?'Cada partida como % del total de activos.':'Cada partida como % de ingresos.')}</p>`;
+    parent.appendChild(sec); n++;
+    if(!c.name.startsWith('Indicadores')){
+      const id=card(sec,'',Math.max(360,items.length*42+120));
+      const tr=set.names.map((nm,i)=>({type:'bar',name:set.label(nm),orientation:'h',y:items.map(it=>it.short),x:items.map(it=>set.val(it.short)[i]),marker:{color:set.color(nm),cornerradius:3},hovertemplate:set.label(nm)+' · %{y}: %{x:.1%}<extra></extra>'}));
+      plot(id,tr,L(c.name+' — todas las partidas',{barmode:'group',bargap:0.25,xaxis:{tickformat:'.0%',zerolinecolor:css('--ink')},yaxis:{autorange:'reversed',automargin:true},legend:{orientation:'h',y:1.08,x:0},margin:{l:10,t:60,b:40}}));
+    } else {
+      const id=card(sec,'',Math.max(260,items.length*44+110));
+      const z=items.map(it=>{const v=set.val(it.short).map(x=>x==null?NaN:x);const ok=v.filter(x=>!isNaN(x));const mn=Math.min(...ok),mx=Math.max(...ok);return v.map(x=>isNaN(x)?null:(x-mn)/(mx-mn||1));});
+      plot(id,[{type:'heatmap',z:z,x:set.names.map(set.label),y:items.map(it=>it.short),colorscale:[[0,S.dark?'#1d2a3d':'#e8f0fb'],[1,S.dark?'#3987e5':'#2a78d6']],showscale:false,xgap:3,ygap:3,
+        text:items.map(it=>set.val(it.short).map(v=>fmt(v,it.unit))),texttemplate:'%{text}',textfont:{size:13},hovertemplate:'%{x} · %{y}: %{text}<extra></extra>'}],
+        L(c.name+' — mapa de calor (más oscuro = mayor valor del grupo)',{yaxis:{autorange:'reversed',automargin:true},xaxis:{side:'top'},margin:{l:10,t:80,b:20}}));
+    }
+    const h3=document.createElement('h3'); h3.textContent='Item por item'; sec.appendChild(h3);
+    const g=document.createElement('div'); g.className='grid'; sec.appendChild(g);
+    items.forEach(it=>barOne(g,set,it.short,it.short,'',230));
+  });
+  return n;
+}
+function tableFor(parent,set,filter,title){
+  const sec=document.createElement('div'); sec.innerHTML=`<h2>${title}</h2>`; parent.appendChild(sec);
+  let h=`<tr><th>Item</th>${set.names.map(n=>`<th style="border-bottom:3px solid ${set.color(n)}">${set.label(n)}</th>`).join('')}<th>Unidad</th></tr>`;
+  D.cats.forEach(c=>{const its=c.items.filter(it=>filter(it)&&set.val(it.short)); if(!its.length) return; h+=`<tr class="cat"><td colspan="${set.names.length+2}">${c.name}</td></tr>`;
+    its.forEach(it=>{h+=`<tr><td>${it.short}</td>${set.val(it.short).map(v=>`<td>${fmt(v,it.unit)}</td>`).join('')}<td style="color:var(--muted)">${unitName(it)}</td></tr>`;});});
+  const d=document.createElement('div'); d.className='card tbl'; d.innerHTML=`<table>${h}</table>`; sec.appendChild(d);
+}
+function chips(parent,set){
+  const d=document.createElement('div'); d.className='chips';
+  d.innerHTML=set.names.map(n=>`<div class="chip"><div class="dot" style="background:${set.color(n)}"></div><b>${set.label(n)}</b><span>${set.sub(n)}</span></div>`).join(''); parent.appendChild(d);
+}
+// ---------- views ----------
+function viewInd(root){
+  const filter = S.reduced ? (it=>RED.has(it.short)) : (it=>true);
+  root.innerHTML=`<p class="sub">Promedio simple de 4 empresas por industria. Balance como % del total de activos · estado de resultados como % de ingresos · indicadores en sus unidades.${S.reduced?' <b>Vista reducida:</b> solo las 28 partidas e indicadores que traen las empresas A–D.':''}</p>`;
+  chips(root,INDS);
+  if(!S.reduced) root.insertAdjacentHTML('beforeend',`<div class="note"><b>Nota:</b> en Biotech, IQVIA e ICON (CROs) no manejan inventario; sus ceros bajan el promedio de rotación y días de inventario. La cobertura de intereses sale negativa en Biotech, Tech y Pharma porque tienen ingreso neto por intereses.</div>`);
+  const h=document.createElement('div'); h.innerHTML=`<h2 id="c1">1. Radiografía de cada industria</h2><p class="sub">Composición del activo, cómo se financia y a dónde va cada dólar de ingreso.</p>`; root.appendChild(h);
+  const g=document.createElement('div'); g.className='grid2'; root.appendChild(g);
+  stackChart(g,INDS,S.reduced?['Efectivo','Inversiones CP','Cuentas por cobrar','Inventarios','Otros act. circulantes','PP&E neto','Inversiones LP','Otros act. LP (intang. + otros)']:['Efectivo','Inversiones CP','Cuentas por cobrar','Inventarios','Otros act. circulantes','PP&E neto','Intangibles','Inversiones LP','Otros act. no circulantes'],
+    '¿De qué está hecho el activo?','% del total de activos','O&G vive de PP&E (66%); Biotech acumula efectivo (27%) y, en las CROs, intangibles; Pharma y Tech cargan intangibles por adquisiciones.');
+  stackChart(g,INDS,['Cuentas por pagar','Deuda CP','Otros pas. circulantes','Deuda LP','Otros pas. no circulantes','Total capital'],'¿Cómo se financia?','% del total de activos','Tech es la que menos se apalanca (61% capital); Pharma la que más (65% pasivos, 30% deuda LP).');
+  if(!S.reduced) incomeStack(root,INDS,'Cada barra = 100% de ingresos (D&A no se muestra porque ya está dentro del costo/gastos). O&G gasta 79¢ de cada dólar en costo de ventas y le quedan 8¢ netos; Pharma solo 24¢ de costo pero reinvierte ~40¢ en SG&A + I+D; Tech y Pharma dejan ~28¢ netos.');
+  root.insertAdjacentHTML('beforeend','<h2 id="c2">2. Indicadores clave para diferenciar las industrias</h2>');
+  keyCharts(root,INDS,{dupont:'DuPont: rentabilidad = margen × rotación. O&G gana por volumen (rotación 0.94×, margen 12%); Pharma y Tech por margen (32–37%); Biotech queda en medio.',
+    roe:'ROE promedio: Pharma (44%) y Tech (34%) muy por encima de O&G (10%) y Biotech (12%).',liq:'Tech y Biotech tienen razón corriente ~2.6×; O&G y Pharma operan cerca de 1.3× y con prueba ácida < 1.',days:'Pharma tarda 242 días en rotar inventario y 76 en cobrar; O&G rota en 27 y cobra en 30.'});
+  categorySections(root,INDS,filter,3);
+  tableFor(root,INDS,filter,'Tabla de promedios por industria');
+}
+function viewEmp(root){
+  const filter = it=>RED.has(it.short);
+  root.innerHTML=`<p class="sub">Las cuatro empresas por identificar, con las 28 partidas e indicadores que trae la tabla del ejercicio (balance como % del total de activos; indicadores en sus unidades).</p>`;
+  chips(root,COMPS);
+  root.insertAdjacentHTML('beforeend',`<div class="note"><b>Nota:</b> C y D traen días de inventario en 0 y D días de cobro en 0; se tratan como dato no disponible (—).</div>`);
+  const h=document.createElement('div'); h.innerHTML=`<h2 id="c1">1. Radiografía de cada empresa</h2>`; root.appendChild(h);
+  const g=document.createElement('div'); g.className='grid2'; root.appendChild(g);
+  stackChart(g,COMPS,['Efectivo','Inversiones CP','Cuentas por cobrar','Inventarios','Otros act. circulantes','PP&E neto','Inversiones LP','Otros act. LP (intang. + otros)'],'¿De qué está hecho el activo?','% del total de activos','A: 25% en inversiones temporales y poco PP&E. C: 77% PP&E. D: 54% en otros activos LP (intangibles).');
+  stackChart(g,COMPS,['Cuentas por pagar','Deuda CP','Otros pas. circulantes','Deuda LP','Otros pas. no circulantes','Total capital'],'¿Cómo se financia?','% del total de activos','A casi sin deuda (76% capital); B es la más apalancada (76% pasivos, 37% deuda LP).');
+  root.insertAdjacentHTML('beforeend','<h2 id="c2">2. Indicadores clave</h2>');
+  keyCharts(root,COMPS,{dupont:'A y B tienen márgenes altísimos (60% y 40%) con ROE ~100%; C y D ganan poco por unidad de activo.',roe:'',liq:'A nada en liquidez (3.9×); C opera por debajo de 1×.',days:'B tarda 352 días en rotar inventario (perfil farma); A 92 días.'});
+  categorySections(root,COMPS,filter,3);
+  tableFor(root,COMPS,filter,'Tabla de las empresas A–D');
+}
+// deviations
+function devMatrix(){ // per item: comps x inds deviation
+  const out={}; D.reduced.forEach(k=>{const c=COMPS.val(k),a=INDS.val(k); out[k]=c.map(cv=>a.map(av=>(cv==null||av===0)?null:(cv-av)/Math.abs(av)));}); return out;
+}
+function summary(){
+  const M=devMatrix(); const res=COMPS.names.map((n,ci)=>{
+    const wins=[0,0,0,0], abs=[[],[],[],[]];
+    D.reduced.forEach(k=>{const d=M[k][ci]; const ok=d.map((x,j)=>[x==null?Infinity:Math.abs(x),j]).filter(p=>p[0]!==Infinity); if(!ok.length) return; ok.sort((a,b)=>a[0]-b[0]); wins[ok[0][1]]++; d.forEach((x,j)=>{if(x!=null) abs[j].push(Math.abs(x));});});
+    const med=abs.map(a=>{a.sort((x,y)=>x-y); return a.length?(a.length%2?a[(a.length-1)/2]:(a[a.length/2-1]+a[a.length/2])/2):null;});
+    const best=[0,1,2,3].sort((a,b)=>(wins[b]-wins[a])||(med[a]-med[b]))[0];
+    return {n,wins,med,best};
+  }); return {M,res};
+}
+function viewVs(root){
+  const {M,res}=summary();
+  root.innerHTML=`<p class="sub">Cada empresa A–D contra el promedio de las cuatro industrias, en las 28 partidas comparables. ${S.dev?'<b>Modo desviación:</b> (valor empresa − promedio industria) / |promedio industria|; verde = se parece, rojo = muy distinto.':'Activa <b>Mostrar desviación %</b> arriba para ver las diferencias en lugar de los valores.'}</p>`;
+  chips(root,INDS); chips(root,COMPS);
+  // summary card
+  const sc=document.createElement('div'); sc.innerHTML=`<h2 id="c1">1. ¿A qué industria se parece cada empresa?</h2><p class="sub">Se cuenta en cuántas de las 28 partidas cada industria es la más cercana, y la mediana de |desviación| contra cada industria.</p>`; root.appendChild(sc);
+  const g=document.createElement('div'); g.className='grid2'; root.appendChild(g);
+  const bl=document.createElement('div'); bl.className='card';
+  bl.innerHTML=`<table><tr><th>Empresa</th><th>Más parecida</th><th># partidas más cercana</th><th>Mediana |desv|</th><th>2ª opción</th></tr>`+res.map(r=>{const o=[0,1,2,3].filter(j=>j!==r.best).sort((a,b)=>(r.wins[b]-r.wins[a])||(r.med[a]-r.med[b]))[0];
+    return `<tr><td><b style="color:${COMPS.color(r.n)}">Empresa ${r.n}</b></td><td><span class="badge" style="background:${INDS.color(INDS.names[r.best])}">${INDS.names[r.best]}</span></td><td>${r.wins[r.best]} / 28</td><td>${pct(r.med[r.best])}</td><td style="color:var(--muted)">${INDS.names[o]}: ${r.wins[o]} · ${pct(r.med[o])}</td></tr>`;}).join('')+`</table>
+    <p class="insight">A y D caen en Tech; B en Pharma; C en O&G. Si cada industria debe usarse una sola vez, la combinación de menor desviación total es A → Biotech y D → Tech (A queda casi empatada entre ambas).</p>`;
+  g.appendChild(bl);
+  const id=card(g,'<p class="insight">Mediana de |desviación %| de cada empresa contra cada industria (verde = más parecido, rojo = más distinto). El número entre paréntesis es en cuántas partidas esa industria es la más cercana.</p>',360);
+  plot(id,[{type:'heatmap',z:res.map(r=>r.med),x:INDS.names,y:res.map(r=>'Empresa '+r.n),colorscale:[[0,S.dark?'#14532d':'#bbf7d0'],[0.5,S.dark?'#713f12':'#fef08a'],[1,S.dark?'#7f1d1d':'#fecaca']],zmin:0.2,zmax:1,showscale:false,xgap:3,ygap:3,
+    text:res.map(r=>r.med.map((m,j)=>pct(m)+' ('+r.wins[j]+')')),texttemplate:'%{text}',textfont:{size:13},hovertemplate:'%{y} vs %{x}: mediana |desv| %{text}<extra></extra>'}],
+    L('Parecido empresa × industria (mediana |desv|, # partidas más cercana)',{yaxis:{autorange:'reversed',automargin:true},margin:{l:10,t:50,b:30}}));
+  // per category
+  let n=2;
+  D.cats.forEach(c=>{
+    const items=c.items.filter(it=>RED.has(it.short)); if(!items.length) return;
+    const sec=document.createElement('div'); sec.innerHTML=`<h2 id="c${n}">${n}. ${c.name}</h2>`; root.appendChild(sec); n++;
+    const gg=document.createElement('div'); gg.className='grid'; sec.appendChild(gg);
+    items.forEach(it=>{
+      const k=it.short, cv=COMPS.val(k), av=INDS.val(k);
+      if(!S.dev){
+        const id=card(gg,'',260);
+        const x=COMPS.names.concat(INDS.names.map(n=>n==='Tecnología'?'Tech':n)), y=cv.concat(av), col=COMPS.names.map(COMPS.color).concat(INDS.names.map(INDS.color));
+        plot(id,[{type:'bar',x:x,y:y.map(v=>v==null?0:v),marker:{color:col,cornerradius:4},text:y.map(v=>fmt(v,it.unit)),textposition:y.some(v=>v<0)?'auto':'outside',cliponaxis:false,textfont:{size:9},hovertemplate:'%{x}: %{text}<extra></extra>'}],
+          L(k,{yaxis:{tickformat:it.unit==='pct'?'.0%':'',zerolinecolor:css('--ink')},xaxis:{tickfont:{size:10},tickangle:0},showlegend:false,margin:{l:44,r:10,t:40,b:36},title:{text:k,font:{size:13}},
+            shapes:[{type:'line',x0:3.5,x1:3.5,y0:0,y1:1,yref:'paper',line:{color:css('--line'),width:1,dash:'dot'}}]}));
+      } else {
+        const id=card(gg,'',260); const z=M[k];
+        plot(id,[{type:'heatmap',z:z.map(r=>r.map(v=>v==null?null:Math.min(1.2,Math.abs(v)))),x:INDS.names,y:COMPS.names.map(COMPS.label),zmin:0,zmax:1.2,
+          colorscale:[[0,S.dark?'#14532d':'#bbf7d0'],[0.4,S.dark?'#713f12':'#fef08a'],[1,S.dark?'#7f1d1d':'#fecaca']],showscale:false,xgap:3,ygap:3,
+          text:z.map(r=>r.map(v=>v==null?'—':(v>0?'+':'')+(v*100).toFixed(0)+'%')),texttemplate:'%{text}',textfont:{size:12},
+          customdata:z.map((r,ci)=>r.map((v,j)=>`${fmt(cv[ci],it.unit)} vs ${fmt(av[j],it.unit)}`)),hovertemplate:'%{y} vs %{x}: %{text}<br>%{customdata}<extra></extra>'}],
+          L(k,{yaxis:{autorange:'reversed',automargin:true},xaxis:{tickfont:{size:10}},margin:{l:10,r:10,t:40,b:30},title:{text:k,font:{size:13}}}));
+      }
+    });
+  });
+  // table
+  const sec=document.createElement('div'); sec.innerHTML=`<h2>Tabla: empresas vs industrias${S.dev?' (desviación %)':''}</h2>`; root.appendChild(sec);
+  let h=`<tr><th>Item</th>${COMPS.names.map(x=>`<th style="border-bottom:3px solid ${COMPS.color(x)}">Empresa ${x}</th>`).join('')}${INDS.names.map(x=>`<th style="border-bottom:3px solid ${INDS.color(x)}">${x}</th>`).join('')}</tr>`;
+  D.cats.forEach(c=>{const its=c.items.filter(it=>RED.has(it.short)); if(!its.length) return; h+=`<tr class="cat"><td colspan="9">${c.name}</td></tr>`;
+    its.forEach(it=>{const k=it.short; if(!S.dev){h+=`<tr><td>${k}</td>${COMPS.val(k).map(v=>`<td>${fmt(v,it.unit)}</td>`).join('')}${INDS.val(k).map(v=>`<td>${fmt(v,it.unit)}</td>`).join('')}</tr>`;}
+      else {h+=`<tr><td>${k}</td>${COMPS.names.map((nm,ci)=>{const r=res[ci];const d=M[k][ci][r.best];return `<td title="vs ${INDS.names[r.best]}">${d==null?'—':(d>0?'+':'')+(d*100).toFixed(0)+'% <span style="color:var(--muted)">vs ${INDS.names[r.best]}</span>'}</td>`;}).join('')}${INDS.val(k).map(v=>`<td>${fmt(v,it.unit)}</td>`).join('')}</tr>`;}});});
+  const d=document.createElement('div'); d.className='card tbl'; d.innerHTML=`<table>${h}</table>`; sec.appendChild(d);
+}
+// ---------- render / controls ----------
+function render(){
+  document.documentElement.setAttribute('data-theme',S.dark?'dark':'light');
+  document.querySelectorAll('#views button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.view));
+  document.getElementById('tReduced').classList.toggle('hide',S.view!=='ind'); document.getElementById('tReduced').classList.toggle('on',S.reduced);
+  document.getElementById('tDev').classList.toggle('hide',S.view!=='vs'); document.getElementById('tDev').classList.toggle('on',S.dev);
+  document.getElementById('tDark').classList.toggle('on',S.dark);
+  plots.forEach(id=>{const el=document.getElementById(id); if(el) Plotly.purge(el);}); plots.length=0;
+  const root=document.getElementById('view'); root.innerHTML='';
+  ({ind:viewInd,emp:viewEmp,vs:viewVs})[S.view](root);
+  flush();
+}
+document.getElementById('views').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return; S.view=b.dataset.v; window.scrollTo(0,0); render();});
+document.getElementById('tReduced').onclick=()=>{S.reduced=!S.reduced; render();};
+document.getElementById('tDev').onclick=()=>{S.dev=!S.dev; const y=window.scrollY; render(); window.scrollTo(0,y);};
+document.getElementById('tDark').onclick=()=>{S.dark=!S.dark; try{localStorage.setItem('theme',S.dark?'dark':'light');}catch(e){} const y=window.scrollY; render(); window.scrollTo(0,y);};
+render();
+</script></body></html>
