@@ -2,7 +2,7 @@
 con industrias (completo), la partida agregada 'Otros act. LP (intang. + otros)', y las empresas A-D (28 partidas)."""
 import json, sys, openpyxl
 SRC = sys.argv[1] if len(sys.argv)>1 else 'data/20261001_Detective_Financiero_v3.xlsx'
-D = json.load(open('data/data_industrias.json'))
+D = json.load(open('data/data_industrias.json',encoding='utf-8'))
 ws = openpyxl.load_workbook(SRC, data_only=True)['Resumen']
 rows = list(ws.iter_rows(values_only=True))
 comp = {}; kpi = False
@@ -34,5 +34,5 @@ for lab,k,short in M:
     compvals[short] = [x/100 for x in v] if not k else [None if x==0 else x for x in v]   # balance viene en 5.13 = 5.13%; KPI en 0 = dato faltante
 D['reduced'] = [m[2] for m in M]
 D['comps'] = {'names':['A','B','C','D'],'colors':{'A':'#4a3aa7','B':'#e87ba4','C':'#008300','D':'#e34948'},'items':compvals}
-json.dump(D, open('data/data.json','w'), ensure_ascii=False)
+json.dump(D, open('data/data.json','w',encoding='utf-8'), ensure_ascii=False)
 print('data/data.json OK —', len(D['reduced']), 'partidas reducidas')

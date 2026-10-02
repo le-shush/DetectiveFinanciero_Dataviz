@@ -1,0 +1,4 @@
+.claude/
+node_modules/
+w*.png
+__pycache__/

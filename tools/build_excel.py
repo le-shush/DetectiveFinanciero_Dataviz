@@ -185,5 +185,5 @@ payload = {'inds': inds, 'companies': companies, 'colors': {k:'#'+v for k,v in C
                      'avg':[data[ind][it][0] for ind in inds],
                      'comp':{ind: data[ind][it][1] for ind in inds}} for it in items]} for cat,items in CATS],
            'bio_no_rev': bio_no_rev}
-json.dump(payload, open('data/data_industrias.json','w'), ensure_ascii=False)
+json.dump(payload, open('data/data_industrias.json','w',encoding='utf-8'), ensure_ascii=False)
 print('ok', bio_no_rev)

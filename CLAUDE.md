@@ -6,7 +6,10 @@ Reporte web estático (GitHub Pages) que compara cuatro industrias (O&G, Biotech
 
 ```
 index.html                 # página generada — NO editar a mano; sale de tools/site_template.html + data/data.json
-assets/plotly.min.js       # Plotly 2.35.2 local (sin CDN, funciona offline)
+css/app.css                # estilos y tokens de color (claro/oscuro); se sirve directo, sin build
+js/app.js                  # EL MOTOR: modelo de datos, builders ECharts, vistas, comparador, panel de detalle
+js/glosario.js             # conocimiento financiero por partida: definición, fórmula, cómo leerlo, pista, relacionadas
+assets/echarts.min.js      # Apache ECharts 5.6.0 local (sin CDN, funciona offline)
 assets/Comparativo_Industrias_Averages.xlsx   # Excel generado con los promedios (link de descarga en la página)
 data/20261001_Detective_Financiero_v3.xlsx    # FUENTE: libro de Excel del ejercicio
 data/data_industrias.json  # intermedio (paso 1)
@@ -14,21 +17,22 @@ data/data.json             # dataset final que se inyecta en el HTML (paso 2)
 tools/build_excel.py       # paso 1: hojas ">>" del Excel -> Excel de promedios + data_industrias.json
 tools/make_data.py         # paso 2: + hoja Resumen (empresas A–D) + partida agregada -> data.json
 tools/build_site.py        # paso 3: template + data.json -> index.html
-tools/site_template.html   # EL MOTOR: todo el HTML/CSS/JS; `__DATA__` se sustituye por el JSON
+tools/site_template.html   # shell HTML; `__DATA__` se sustituye por el JSON; carga css/ y js/
 tools/deviations_excel.py  # opcional: Excel con desviaciones % y "industria más parecida"
-tools/smoke_test.js        # playwright: recorre vistas/toggles, reporta errores JS y # de gráficos
+tools/smoke_test.js        # playwright: recorre vistas, tipos de gráfica, comparador y detalle; reporta errores JS
 .nojekyll                  # GitHub Pages sin Jekyll
 ```
 
 ### Regenerar todo
 ```bash
 pip install openpyxl            # único requisito de Python
-python3 tools/build_excel.py    # [ruta_al_xlsx opcional]
-python3 tools/make_data.py      # [ruta_al_xlsx opcional]
-python3 tools/build_site.py
-# prueba (opcional): npm i playwright && node tools/smoke_test.js  -> espera "ind full 82 / ind reduced 44 / emp 46 / vs 29 / vs dev 29" y cero PAGEERR
+python tools/build_excel.py     # [ruta_al_xlsx opcional]
+python tools/make_data.py       # [ruta_al_xlsx opcional]
+python tools/build_site.py
+# prueba (opcional): npm i playwright && npx playwright install chromium && node tools/smoke_test.js  -> termina en "OK: cero errores"
 ```
-Publicación: GitHub Pages desde `main` / raíz. Al cambiar sólo el motor, basta con correr el paso 3 y subir `index.html`.
+Publicación: GitHub Pages desde `main` / raíz. Cambios en `css/` o `js/` no requieren build (se sirven directo); sólo `tools/site_template.html` o los datos requieren el paso 3.
+Para verlo local: `python -m http.server 8765` y abrir http://localhost:8765 (también funciona con `file://`). Los scripts de Python abren todo en UTF-8 (en Windows el default es cp1252).
 
 ## El Excel fuente (data/20261001_Detective_Financiero_v3.xlsx)
 
@@ -47,16 +51,21 @@ comps: {names:['A','B','C','D'], colors:{...}, items:{short:[4 valores]}}   # nu
 ```
 Categorías: Activos, Pasivos, Capital, Ingresos, Gastos, Utilidad e Impuestos, Indicadores: Liquidez / Eficiencia / Apalancamiento / Rentabilidad. Los nombres cortos (`short`) son la **clave** con la que el JS busca partidas (`byShort`); si se renombran en `build_excel.py` (dict `SHORT`) hay que actualizar las referencias en el template y en `make_data.py` (lista `M`).
 
-## El motor (tools/site_template.html)
+## El motor (js/app.js + js/glosario.js)
 
-Un solo archivo, vanilla JS + Plotly, sin build step. Partes:
-- **Estado** `S = {view:'ind'|'emp'|'vs', reduced, dev, dark}`. `render()` purga todos los plots, reconstruye el DOM de la vista y luego `flush()` dibuja (los `plot()` se encolan para que el grid ya tenga su ancho final — si se dibuja antes, el primer gráfico del grid sale al ancho completo).
-- **Tema**: variables CSS en `:root` y `:root[data-theme="dark"]`; Plotly lee los colores con `css('--var')` en cada render, por eso al cambiar tema se re-renderiza todo. Preferencia en `localStorage('theme')`, default = `prefers-color-scheme`.
-- **Conjuntos de entidades** intercambiables: `INDS` (industrias) y `COMPS` (empresas). Interfaz: `{kind, names, color(n), label(n), val(short)->array|null, sub(n)}`. Todos los builders reciben un `set`, así cualquier gráfico sirve para industrias o empresas.
-- **Builders**: `stackChart` (100% apilado), `incomeStack` (a dónde va cada dólar), `barOne`, `grouped`, `dupont` (scatter margen × rotación, tamaño=|ROE|), `radar` (normalizado 0–1 por indicador), `keyCharts` (sección "indicadores clave"), `categorySections` (por categoría: barras agrupadas horizontales o heatmap para indicadores + mini-gráfico por partida), `tableFor`, `chips`. Cada builder se **salta solo** si al `set` le faltan las partidas que necesita (`set.val(k)` → null), así la vista reducida/empresas no requiere lógica especial.
-- **Vistas**: `viewInd` (completa o reducida con el toggle "Solo partidas de las empresas"), `viewEmp` (A–D con las 28 partidas), `viewVs` (empresa vs industria: valores en barras de 8, o con el toggle "Mostrar desviación %" heatmaps 4×4 por partida + resumen "¿a qué industria se parece?").
-- **Desviaciones** (`devMatrix`/`summary`): `(valor − promedio)/|promedio|`; promedio 0 o valor null → no comparable. Por empresa se cuenta en cuántas partidas cada industria es la más cercana (`wins`) y la mediana de |desv| por industria; "más parecida" = más wins, desempate por mediana. Misma lógica que `tools/deviations_excel.py`.
-- Paleta (del skill dataviz, validada CVD): industrias azul `#2a78d6` / naranja `#eb6834` / aqua `#1baf7a` / amarillo `#eda100`; empresas violeta `#4a3aa7` / magenta `#e87ba4` / verde `#008300` / rojo `#e34948`. Una serie = un color fijo por entidad (nunca por rango). Texto siempre en tokens de tinta, nunca en color de serie.
+Vanilla JS + ECharts, sin build step. Secciones numeradas igual que en el archivo:
+1. **Modelo**: 8 entidades `ENT` (4 industrias + A–D) con `id`, `kind:'ind'|'co'`, `slot` (color). `val(id, short)` y `avail(id, short)` son la única forma de leer datos; las empresas sólo tienen las 28 partidas de `reduced` + los derivados. **Derivados** (`DERIVED`, categoría "Indicadores: Derivados", `derived:true`, etiqueta "calculado"): liquidez inmediata, deuda financiera, D/E, multiplicador de capital, razón de efectivo, capital de trabajo/activo, margen neto implícito y ROA implícito (DuPont despejado: A–D no reportan margen neto). En industrias se calculan por empresa y luego se promedian.
+2. **Tema**: tokens en `css/app.css` (`:root`, `prefers-color-scheme` y `[data-theme]`); colores de entidad `--c1..--c8` con pasos propios para oscuro. `readTheme()` los lee a `T` antes de dibujar; al cambiar tema se redibuja lo ya pintado.
+3. **Estado** `S = {view:'ind'|'emp'|'vs'|'lab', reduced, dev, gtype}`; `OVR[cardId]` = tipo elegido en cada tarjeta (el selector global lo limpia); `LAB` = estado del comparador, guardado en el hash (`#lab?e=Pharma,B&t=radar&s=auto&p=huella`) para compartir.
+4. **Registro de gráficas**: `mount(el, spec)` → carga diferida (IntersectionObserver) y redibujo al cambiar de ancho (ResizeObserver): las opciones dependen del ancho (rotación/corte de etiquetas, altura, radio del radar).
+5. **Tipos** (`typesOf`/`typeOf`): `bar`, `hbar`, `radar`, `line`, `area`, `heat`, `table` para bloques multi-partida; `stack` (composición 100%), `dupont`/`scatter`, `dist` (distribución: las 4 empresas de cada industria + promedio + A–D). Un `spec` = `{kind?, id, title, sub, ents, items|item, auto, insight, fixed?}`; si no admite el tipo global se queda en su `auto`.
+   **Escala**: real si todas las partidas comparten unidad; si no, "relativa al máximo" (v / máx|v| de las 8 entidades = 100) con aviso en la tarjeta; el comparador agrega "desviación % vs referencia". El radar usa escala propia por eje (rango de las 8 entidades), nunca normaliza contra la selección: las formas no brincan al cambiar quién se compara.
+7. **Builders** `buildCartesian`, `buildHBar`, `buildSingle`, `buildRadar`, `buildHeat`, `buildDist`, `buildStack`, `buildScatter`, `buildDevHeat`, `buildSimHeat`, `tableHTML`. Etiquetas con `hideOverlap`, ancho fijo + `overflow:'break'` para nombres largos, `containLabel` en todos los grids.
+8. **Tarjetas** `card(parent, spec)`: título (clic → detalle), iconos de tipo, ⓘ y menú ⋯ (tipo, PNG, abrir en el comparador). En tarjetas angostas los iconos bajan a su propia fila.
+9–11. **Vistas** `viewInd`, `viewEmp`, `viewVs`, `viewLab` (comparador: entidades, duelos sugeridos, presets de partidas, checklist, tipo, escala, "lectura rápida" de desviaciones y partida por partida).
+12. **Panel de detalle** `openItem(short)`: definición, fórmula (HTML con `frac()`), distribución, lectura automática (máx/mín, industria más cercana por empresa), cómo leerlo, pista de detective, tabla de componentes con recalculado (`GLOSARIO[k].parts/calc`) y, para ROE, descomposición DuPont con "motor principal". `openGlossary()` = lista con buscador.
+- **Desviaciones** (`computeSummary`): `(valor − promedio)/|promedio|`; promedio 0 o valor null → no comparable. Por empresa se cuenta en cuántas partidas cada industria es la más cercana (`wins`) y la mediana de |desv|; "más parecida" = más wins, desempate por mediana. Misma lógica que `tools/deviations_excel.py`. Sólo usa las 28 de `reduced` (no los derivados).
+- **Paleta** (skill dataviz, validada con `validate_palette.js` en claro y oscuro): industrias azul/naranja/aqua/amarillo, empresas violeta/magenta/verde/rojo. En claro el par verde↔rojo (C↔D) queda en ΔE CVD 7.2, por eso las empresas llevan **codificación secundaria** (línea punteada, marcador rombo/círculo). Color fijo por entidad, nunca por rango; texto siempre en tokens de tinta. Las composiciones usan rampas por grupo (azules = circulante/capital, cálidos = no circulante/pasivo), no colores de entidad. Mapas de calor: una sola rampa azul (más oscuro = mayor / más parecido).
 
 ## Decisiones y rarezas de los datos (no "corregir" sin preguntar)
 
@@ -64,12 +73,12 @@ Un solo archivo, vanilla JS + Plotly, sin build step. Partes:
 - En A–D: C y D tienen días de inventario = 0 y D días de cobro = 0 → se tratan como `null` ("—"), no como cero. Las partidas de las empresas sin equivalente (PPE bruto, depreciación acumulada, preferentes, interés minoritario) se ignoran.
 - Biotech: IQVIA e ICON (CROs) no tienen inventario → rotación/días de inventario del sector quedan bajos. Cobertura de intereses sale negativa en Biotech/Tech/Pharma porque tienen ingreso neto por intereses (EBIT ÷ negativo). Está anotado en la UI.
 - En "¿A dónde va cada dólar?" no se incluye D&A (ya está dentro de costo/gastos; EBITDA = EBIT + D&A); el residuo gris cierra al 100%.
-- Resultado actual del detective: **A→Tech (12/28), B→Pharma (18), C→O&G (14), D→Tech (13)**. A queda casi empatada con Biotech (mediana 48% vs 51%); si cada industria debe usarse una vez, la asignación de menor desviación total es A→Biotech, D→Tech. Los textos de insight en el template están escritos a mano con estas cifras: si cambian los datos hay que revisarlos (están en `viewInd`, `viewEmp`, `viewVs` y en `keyCharts`).
-- `index.html` pesa ~67 KB porque lleva el JSON embebido; Plotly va aparte (4.5 MB) para que el HTML sea editable.
+- Resultado actual del detective: **A→Tech (12/28), B→Pharma (18), C→O&G (14), D→Tech (13)**. A queda casi empatada con Biotech (mediana 48% vs 51%); si cada industria debe usarse una vez, la asignación de menor desviación total es A→Biotech, D→Tech. Los textos de insight en el template están escritos a mano con estas cifras: si cambian los datos hay que revisarlos (están en `viewInd`, `viewEmp` y `viewVs` de `js/app.js`).
+- Los textos de `js/glosario.js` no llevan cifras a propósito: las cifras vivas las calcula el panel de detalle.
+- `index.html` pesa ~40 KB porque lleva el JSON embebido; ECharts va aparte (1 MB).
 
-## Ideas pendientes / "chochos" que se habían mencionado
+## Ideas pendientes
 - Hoja/sección "cómo reconocer cada industria" (3–4 rasgos por sector).
-- Selector de empresas individuales dentro de cada industria (los datos por empresa ya están en `items[].comp`).
-- Exportar gráficos a PNG (Plotly `toImage`) y/o un botón de "copiar tabla".
+- Empresas individuales de cada industria como entidades del comparador (los datos ya están en `items[].comp`; hoy sólo se ven en el tipo "Distribución").
+- Botón "copiar tabla".
 - Validar la paleta con `scripts/validate_palette.js` del skill dataviz si se cambian colores (CVD ΔE ≥ 8, normal ≥ 15).
-- Separar el template en `css/` y `js/` si crece; hoy todo vive en un archivo a propósito (cero build).
