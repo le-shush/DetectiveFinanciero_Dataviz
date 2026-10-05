@@ -942,7 +942,8 @@ function openItem(k, push){
   if (g.f) html += `<h5>Fórmula</h5><div class="formula">${g.f}</div>${['Activos', 'Pasivos', 'Capital'].includes(it.cat) ? `<p style="font-size:12px;margin-top:6px">${BASE_BAL}</p>` : ['Ingresos', 'Gastos', 'Utilidad e Impuestos'].includes(it.cat) ? `<p style="font-size:12px;margin-top:6px">${BASE_ER}</p>` : ''}`;
   html += `<h5>Cómo se ve en los datos</h5><div class="chart" id="drChart"></div>${autoReading(k, ents)}`;
   if (g.read) html += `<h5>Cómo leerlo</h5><p>${g.read}</p>`;
-  if (g.pista && g.pista !== '—') html += `<div class="callout"><p style="margin:0"><b>Pista de detective:</b> ${g.pista}</p></div>`;
+  // Pistas de detective ocultas temporalmente (el texto sigue en GLOSARIO[k].pista). Para volver a mostrarlas, descomentar:
+  // if (g.pista && g.pista !== '—') html += `<div class="callout"><p style="margin:0"><b>Pista de detective:</b> ${g.pista}</p></div>`;
   if (k === 'ROE') html += dupontTable();
   else if (g.parts && g.parts.length) html += partsTable(k, g, ents);
   if (g.rel && g.rel.length) html += `<h5>Relacionadas</h5><div class="rel">${g.rel.filter(r => byShort[r]).map(r => `<button class="pill" data-item="${esc(r)}">${esc(r)}</button>`).join('')}</div>`;
