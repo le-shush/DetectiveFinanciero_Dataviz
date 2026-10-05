@@ -807,6 +807,9 @@ const PRESETS = [
   ['res', 'Estado de resultados', ['Costo de ventas', 'Utilidad bruta', 'SG&A', 'I+D', 'EBIT', 'EBITDA', 'Utilidad neta']],
   ['todas', 'Todas las disponibles', null],
 ];
+// "Nuestras Asociaciones": la asignación elegida por el equipo (empresa -> industria). No es el cálculo de
+// computeSummary (que sigue en la vista "Empresas vs industrias"); D se asocia a Biotech por decisión del equipo.
+const ASOC = {A:'Tecnología', B:'Pharma', C:'O&G', D:'Biotech'};
 const LAB_TYPES = ['bar', 'hbar', 'radar', 'line', 'area', 'heat', 'scatter', 'table'];
 const labAvail = k => LAB.ents.length ? LAB.ents.every(id => avail(id, k)) : true;
 function labItems(){
@@ -826,7 +829,7 @@ function viewLab(root){
   const side = el('div', 'lab-side', wrap), main = el('div', 'lab-main', wrap);
   // --- entidades
   const pe = el('div', 'panel', side);
-  const sugg = SUMMARY.res.map(r => [IND[r.best], r.n]);
+  const sugg = CO.map(c => [ASOC[c], c]);
   pe.innerHTML = `<h4>Quiénes <span class="spacer"></span><button data-q="ind">Industrias</button>·<button data-q="co">Empresas</button>·<button data-q="all">Todas</button></h4>
     <div class="ents">${ALL.map(id => `<div class="ent ${LAB.ents.includes(id) ? 'on' : ''}" data-e="${esc(id)}" role="checkbox" aria-checked="${LAB.ents.includes(id)}" tabindex="0">${swatch(id)}<span>${esc(E[id].label)}</span></div>`).join('')}</div>
     <h4 style="margin-top:12px">Nuestras Asociaciones</h4><div class="presets">${sugg.map(([i, c]) => `<button class="pill ${LAB.ents.length === 2 && LAB.ents.includes(i) && LAB.ents.includes(c) ? 'on' : ''}" data-duel="${esc(i)},${c}">${c} vs ${esc(E[i].short)}</button>`).join('')}</div>`;
