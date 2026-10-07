@@ -82,3 +82,11 @@ Vanilla JS + ECharts, sin build step. Secciones numeradas igual que en el archiv
 - Empresas individuales de cada industria como entidades del comparador (los datos ya están en `items[].comp`; hoy sólo se ven en el tipo "Distribución").
 - Botón "copiar tabla".
 - Validar la paleta con `scripts/validate_palette.js` del skill dataviz si se cambian colores (CVD ΔE ≥ 8, normal ≥ 15).
+
+## Central de estudio (`estudio.html`, URL aparte sin liga desde index)
+Guía de estudio interactiva para el examen final (`noindex`). Vanilla JS + ECharts, sin build; carga `css/app.css` (tokens) + `css/estudio.css`.
+- `js/estudio/core.js`: API `window.E` (helpers de HTML, `E.knobs`, `E.tiles`, `E.chart`, `E.quiz`, `E.table`) y `E.model` = modelo de "La Tiendita" con ER + balance + flujo + razones conectados (la caja del año 1 sale del flujo, así el balance siempre cuadra).
+- `js/estudio/boot.js`: navegación lateral y router `#/id[/ancla]`; modo "Explicado fácil" (`body.kid-off` oculta `.co.kid`).
+- Una sección por archivo `sNN_*.js` que llama `E.section({id, n, group, title, short, exam, render})`; para agregar una, crea el archivo y su `<script>` en `estudio.html` antes de `boot.js`.
+- Ilustraciones = SVG inline con clases `.ill` (`f1..f8`, `w1..w8`, `ln`, `s1..s8`, `tw`…); las variables CSS no sirven como atributos de presentación.
+- Cifras de clase dudosas (transcripción automática) van marcadas con "≈"/"aprox.".
